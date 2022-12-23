@@ -36,6 +36,17 @@ as well as warning against using non-ascii characters on its site.
 However, to save gas, such checks have been implemented off-chain, on the frontend side.
 Any user can register a name bypassing the official site by calling the protocol contract directly.
 
+### Examples
+
+| Legit name                      | Spoofing name                                              | Technique          |
+| ------------------------------- | ---------------------------------------------------------- | ------------------ |
+| wildcat.eth                     | w1ldcat.eth                                                | ASCII Homoglyph    |
+| bitcoin.eth                     | Bitcoin.eth                                                | Uppercase          |
+| danger.eth                      | dаnger.eth                                                 | Cyrillic Homoglyph |
+| web3user.eth                    | web3uṡer.eth                                               | Unicode Homoglyph  |
+| vitalik.eth                     | vitalik&#8203;.eth                                         | Zero Width Space   |
+| of etheen / wizardsofetheen.eth | of&nbsp;&nbsp;etheen&nbsp;/&nbsp;&nbsp;wizardsofetheen.eth | Whitespace         |
+
 ## The Solution
 
 ENS Spoofing Bot monitors on-chain contract events responsible for registering ".eth" names.
@@ -54,10 +65,10 @@ Telegram, Discord, Slack or Webhook.
 
 ## Alerts
 
-- AK-ENS-SPOOFING-0
-    - Fired when a transaction contains a registration event for a .ETH name that visually similar to an existing one
-    - Severity is always set to "low"
-    - Type is always set to "suspicious"
+- AK-ENS-SPOOFING
+  - Fired when a transaction contains a registration event for a .ETH name that visually similar to an existing one
+  - Severity is always set to "low"
+  - Type is always set to "suspicious"
 
 ## Test Data
 

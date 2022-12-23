@@ -1,15 +1,34 @@
 import { Finding, FindingSeverity, FindingType } from 'forta-agent';
 
-const botConfig = require('../bot-config.json');
+export const createFinding = (params: {
+  legitName: string;
+  legitAccount: string;
+  impersonatingName: string;
+  impersonatingAccount: string;
+  developerAbbreviation: string;
+}) => {
+  const {
+    legitName,
+    legitAccount,
+    impersonatingName,
+    impersonatingAccount,
+    developerAbbreviation,
+  } = params;
 
-export const createFinding = () => {
   return Finding.from({
-    alertId: `${botConfig.developerAbbreviation}-ALERT-0`,
-    name: 'Forta Alert',
-    description: 'Alert description',
-    type: FindingType.Unknown,
-    severity: FindingSeverity.Unknown,
-    addresses: [],
-    metadata: {},
+    alertId: `${developerAbbreviation}-ENS-SPOOFING`,
+    name: 'Potential ENS Spoofing',
+    description:
+      `Account ${impersonatingAccount} registered "${impersonatingName}.eth" ENS name` +
+      ` that is visually similar to "${legitName}.eth" of account ${legitAccount}`,
+    type: FindingType.Suspicious,
+    severity: FindingSeverity.Low,
+    addresses: [legitAccount, impersonatingAccount],
+    metadata: {
+      legitName,
+      legitAccount: legitAccount.toLowerCase(),
+      impersonatingName,
+      impersonatingAccount: impersonatingAccount.toLowerCase(),
+    },
   });
 };

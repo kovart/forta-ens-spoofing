@@ -1,3 +1,5 @@
 {
-  "developerAbbreviation": "AK"
+  "developerAbbreviation": "AK",
+  "minASCIICharacters": 5,
+  "maxASCIIReplacements": 4
 }

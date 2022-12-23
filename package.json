@@ -35,7 +35,8 @@
   },
   "dependencies": {
     "ethers": "^5.7.2",
-    "forta-agent": "^0.1.15"
+    "forta-agent": "^0.1.15",
+    "forta-agent-tools": "^3.1.2"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
@@ -44,8 +45,8 @@
     "eslint": "^8.29.0",
     "eslint-config-prettier": "^8.5.0",
     "husky": "^8.0.2",
-    "lint-staged": "^13.1.0",
     "jest": "^29.3.1",
+    "lint-staged": "^13.1.0",
     "nodemon": "^2.0.20",
     "prettier": "^2.8.1",
     "ts-jest": "^29.0.3",
