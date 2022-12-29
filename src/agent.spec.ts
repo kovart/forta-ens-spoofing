@@ -6,6 +6,8 @@ import agent from './agent';
 import { BotConfig, DataContainer } from './types';
 import { Logger, LoggerLevel } from './logger';
 import { createFinding } from './findings';
+import { EnsResolver } from './resolver';
+import { NAME_REGISTERED_EVENT } from './constants';
 
 const { provideInitialize, provideHandleTransaction } = agent;
 
@@ -17,9 +19,11 @@ describe('ENS Spoofing bot', () => {
       const logger = new Logger();
       const config: BotConfig = {
         developerAbbreviation: 'AK',
-        minASCIICharacters: 5,
-        maxASCIIHomoglyphs: 4,
-        ethRegistrarControllerAddress: createAddress('0x'),
+        minASCIICharactersNumber: 5,
+        maxASCIIHomoglyphsNumber: 4,
+        maxASCIIHomoglyphsPercent: 30,
+        ensRegistryAddress: createAddress('0x2'),
+        ensEthRegistrarControllerAddress: createAddress('0x'),
       };
 
       const initialize = provideInitialize(data, config, provider, logger, true);
@@ -29,6 +33,7 @@ describe('ENS Spoofing bot', () => {
       expect(data.isInitialized).toStrictEqual(true);
       expect(data.isDevelopment).toStrictEqual(true);
       expect(data.config).toStrictEqual(config);
+      expect(data.ensResolver).toBeInstanceOf(EnsResolver);
       expect(data.logger).toStrictEqual(logger);
       expect(data.provider).toStrictEqual(provider);
     });
@@ -37,60 +42,99 @@ describe('ENS Spoofing bot', () => {
   describe('handleTransaction()', () => {
     let mockData: DataContainer = {} as any;
     let mockProvider: jest.MockedObject<ethers.providers.StaticJsonRpcProvider>;
+    let mockEnsResolver: jest.Mocked<EnsResolver>;
     let handleTransaction: HandleTransaction;
+
+    let mockEnsNameDatabase: { [name: string]: string } = {}; // name -> address
 
     const autoAddress = (
       (count) => () =>
         createAddress('0x' + count++)
     )(0);
-    // eslint-disable-next-line @typescript-eslint/no-empty-function
-    const registerName = (name: string, account: string): void => {};
-    const getENSRegisterTx = (names: { name: string; account: string }[]) => {
-      return new TestTransactionEvent();
+    const registerName = (name: string, account: string): void => {
+      mockEnsNameDatabase[name] = account;
     };
-    const generateName = (injectGlyphs: string[] = [], repeatCount = 1, length = 7) => {
-      const symbols = 'abcdefghijklmnopqstvwxy';
-      const glyphsStack = [];
-
-      for (let i = 0; i < repeatCount; i++) {
-        glyphsStack.push(...injectGlyphs);
+    const clearRegisteredNames = (): void => {
+      mockEnsNameDatabase = {};
+    };
+    const getENSRegisterTx = (names: { name: string; account: string }[]) => {
+      const tx = new TestTransactionEvent();
+      for (const { name, account } of names) {
+        tx.addEventLog(NAME_REGISTERED_EVENT, mockData.config.ensEthRegistrarControllerAddress, [
+          name,
+          ethers.utils.keccak256(ethers.utils.toUtf8Bytes(name)),
+          account,
+          1e10,
+          Date.now() + 1e8,
+        ]);
       }
+      return tx;
+    };
+    const generateName = (glyphs: string[] = [], length = 10) => {
+      const symbols = 'abcdefghjklmnopq';
 
-      if (glyphsStack.length > length)
+      const glyphsLength = glyphs.reduce((sum, curr) => sum + curr.length, 0);
+
+      if (glyphsLength > length)
         throw new Error(
-          `The number of glyphs exceeds the desired name length. Glyphs: ${injectGlyphs.length}. Length: ${length}`,
+          `Glyphs length exceeds the desired name length. Glyphs length: ${glyphsLength}. Name length: ${length}`,
         );
 
-      let name = symbols.repeat(Math.max(1, Math.ceil(length / symbols.length))).slice(0, length);
-      for (const index in glyphsStack) {
+      const name = symbols.repeat(Math.max(1, Math.ceil(length / symbols.length))).slice(0, length);
+      const nameChars = Array.from(name);
+      let shift = 0;
+      for (const index in glyphs) {
         const position = Math.floor(
-          Number(index) * (length / glyphsStack.length) + length / glyphsStack.length / 2,
+          Number(index) * (length / glyphs.length) + length / glyphs.length / 2,
         );
-        name = name.slice(0, position - 1) + glyphsStack[index] + name.slice(position, length);
+
+        nameChars.splice(position + shift, 1, glyphs[index]);
+        shift += Array.from(glyphs[index]).length - 1;
       }
 
-      return name;
+      return nameChars.join('');
     };
 
     beforeAll(() => {
+      mockProvider = {} as any;
+      mockEnsResolver = {
+        resolveName: jest
+          .fn()
+          .mockImplementation(
+            async (name: string) => mockEnsNameDatabase[name.slice(0, -4)] || null,
+          ),
+      } as any;
+
       mockData = {
-        logger: new Logger(LoggerLevel.DEBUG),
-        addressesByName: new Map(),
-        provider: mockProvider,
         config: {
           developerAbbreviation: 'TEST',
-          minASCIICharacters: 5,
-          maxASCIIHomoglyphs: 4,
-          ethRegistrarControllerAddress: createAddress('0xAABBCCDDEEFF'),
+          minASCIICharactersNumber: 1, // test purpose
+          maxASCIIHomoglyphsNumber: 99, // test purpose
+          maxASCIIHomoglyphsPercent: 99, // test purpose
+          ensRegistryAddress: createAddress('0xFFEEDDCCBBAA'),
+          ensEthRegistrarControllerAddress: createAddress('0xAABBCCDDEEFF'),
         },
+        provider: mockProvider,
+        ensResolver: mockEnsResolver,
+        logger: new Logger(LoggerLevel.INFO),
         isDevelopment: false,
         isInitialized: true,
       } as DataContainer;
       handleTransaction = provideHandleTransaction(mockData);
     });
 
+    beforeEach(() => {
+      clearRegisteredNames();
+      mockData.config = {
+        ...mockData.config,
+        minASCIICharactersNumber: 1,
+        maxASCIIHomoglyphsNumber: 99,
+        maxASCIIHomoglyphsPercent: 99,
+      };
+    });
+
     it('returns empty findings if there are no spoofed ENS names', async () => {
-      mockData.config.minASCIICharacters = 5;
+      mockData.config.minASCIICharactersNumber = 5;
 
       const pairs = [
         ['wildcat', 'wildcat1'],
@@ -117,14 +161,14 @@ describe('ENS Spoofing bot', () => {
     });
 
     it('returns empty findings if ENS name is short enough to be spoofed with ASCII homohlyphs', async () => {
-      mockData.config.minASCIICharacters = 8;
+      mockData.config.minASCIICharactersNumber = 8;
 
-      const legitName = 'wildcat';
-      const legitAccount = autoAddress();
+      const originalName = 'wildcat';
+      const originalAccount = autoAddress();
       const impersonatingName = 'w1ldcat';
       const impersonatingAccount = autoAddress();
 
-      registerName(legitName, legitAccount);
+      registerName(originalName, originalAccount);
 
       const findings = await handleTransaction(
         getENSRegisterTx([
@@ -136,6 +180,88 @@ describe('ENS Spoofing bot', () => {
       );
 
       expect(findings).toStrictEqual([]);
+    });
+
+    it('returns empty findings if ENS name has a large enough number of ASCII homoglyphs', async () => {
+      // --------------------------
+      // test 'maxASCIIHomoglyphsNumber'
+
+      mockData.config.maxASCIIHomoglyphsNumber = 2; // max 2 homoglyph chars
+      mockData.config.maxASCIIHomoglyphsPercent = 100; // all names should be passed
+
+      let originalName = 'wildcat1';
+      let originalAccount = autoAddress();
+      let impersonatingName = 'w1lbcatl';
+      let impersonatingAccount = autoAddress();
+
+      registerName(originalName, originalAccount);
+
+      let findings = await handleTransaction(
+        getENSRegisterTx([
+          {
+            name: impersonatingName,
+            account: impersonatingAccount,
+          },
+        ]),
+      );
+
+      expect(findings).toStrictEqual([]);
+
+      // --------------------------
+      // test 'maxASCIIHomoglyphsPercent'
+
+      mockData.config.maxASCIIHomoglyphsNumber = 999;
+      mockData.config.maxASCIIHomoglyphsPercent = 20; // 2 characters for a name 10 characters long
+
+      originalName = 'wildcat100';
+      originalAccount = autoAddress();
+      impersonatingName = 'w1lbcatl00';
+      impersonatingAccount = autoAddress();
+
+      registerName(originalName, originalAccount);
+
+      findings = await handleTransaction(
+        getENSRegisterTx([
+          {
+            name: impersonatingName,
+            account: impersonatingAccount,
+          },
+        ]),
+      );
+
+      expect(findings).toStrictEqual([]);
+
+      // --------------------------
+      // test case when the threshold is not exceeded
+
+      mockData.config.maxASCIIHomoglyphsNumber = 3;
+      mockData.config.maxASCIIHomoglyphsPercent = 30; // 3 characters for a name 10 characters long
+
+      originalName = 'wildcat100';
+      originalAccount = autoAddress();
+      impersonatingName = 'vv1lḍCatl00'; // 3 ASCII homoglyphs + 1 uppercase + 1 unicode
+      impersonatingAccount = autoAddress();
+
+      registerName(originalName, originalAccount);
+
+      findings = await handleTransaction(
+        getENSRegisterTx([
+          {
+            name: impersonatingName,
+            account: impersonatingAccount,
+          },
+        ]),
+      );
+
+      expect(findings).toStrictEqual([
+        createFinding({
+          originalName,
+          originalAccount,
+          impersonatingName,
+          impersonatingAccount,
+          developerAbbreviation: mockData.config.developerAbbreviation,
+        }),
+      ]);
     });
 
     it('returns a finding if ENS name was spoofed with ASCII homoglyphs', async () => {
@@ -159,10 +285,11 @@ describe('ENS Spoofing bot', () => {
       };
 
       for (const [symbol, glyphs] of Object.entries(glyphsBySymbol)) {
-        const legitName = generateName([symbol]);
-        const legitAccount = autoAddress();
+        const originalName = generateName([symbol]);
+        const originalAccount = autoAddress();
 
-        registerName(legitName, legitAccount);
+        clearRegisteredNames();
+        registerName(originalName, originalAccount);
 
         for (const glyph of glyphs) {
           const impersonatingName = generateName([glyph]);
@@ -174,8 +301,8 @@ describe('ENS Spoofing bot', () => {
 
           expect(findings).toStrictEqual([
             createFinding({
-              legitName,
-              legitAccount,
+              originalName,
+              originalAccount,
               impersonatingName,
               impersonatingAccount,
               developerAbbreviation: mockData.config.developerAbbreviation,
@@ -186,10 +313,12 @@ describe('ENS Spoofing bot', () => {
 
       // test multiple symbols simultaneously
 
-      const legitName = generateName(['0', '1', 'k', 'w'], 1, 10);
-      const legitAccount = autoAddress();
+      const originalName = '01aakaawaabc';
+      const originalAccount = autoAddress();
 
-      const impersonatingName = generateName(['o', 'i', 'ik', 'vv'], 1, 10);
+      registerName(originalName, originalAccount);
+
+      const impersonatingName = 'oiaaikaavvaabc';
       const impersonatingAccount = autoAddress();
 
       const findings = await handleTransaction(
@@ -198,8 +327,8 @@ describe('ENS Spoofing bot', () => {
 
       expect(findings).toStrictEqual([
         createFinding({
-          legitName,
-          legitAccount,
+          originalName,
+          originalAccount,
           impersonatingName,
           impersonatingAccount,
           developerAbbreviation: mockData.config.developerAbbreviation,
@@ -208,9 +337,6 @@ describe('ENS Spoofing bot', () => {
     });
 
     it('returns a finding if ENS name was spoofed with unicode homoglyphs', async () => {
-      // we should detect the use of unicode homoglyphs with any number of ASCII characters
-      mockData.config.minASCIICharacters = 1;
-
       const glyphsBySymbol = {
         '2': ['ƻ'],
         '5': ['ƽ'],
@@ -243,10 +369,11 @@ describe('ENS Spoofing bot', () => {
       };
 
       for (const [symbol, glyphs] of Object.entries(glyphsBySymbol)) {
-        const legitName = generateName([symbol]);
-        const legitAccount = autoAddress();
+        const originalName = generateName([symbol]);
+        const originalAccount = autoAddress();
 
-        registerName(legitName, legitAccount);
+        clearRegisteredNames();
+        registerName(originalName, originalAccount);
 
         for (const glyph of glyphs) {
           const impersonatingName = generateName([glyph]);
@@ -258,8 +385,8 @@ describe('ENS Spoofing bot', () => {
 
           expect(findings).toStrictEqual([
             createFinding({
-              legitName,
-              legitAccount,
+              originalName,
+              originalAccount,
               impersonatingName,
               impersonatingAccount,
               developerAbbreviation: mockData.config.developerAbbreviation,
@@ -270,10 +397,12 @@ describe('ENS Spoofing bot', () => {
 
       // test multiple symbols simultaneously
 
-      const legitName = generateName(['p', 'r', 'i', 'u'], 1, 10);
-      const legitAccount = autoAddress();
+      const originalName = 'aprapraaiui';
+      const originalAccount = autoAddress();
 
-      const impersonatingName = generateName(['ṗ', 'ṛ', 'ì', 'ᴜ'], 1, 10);
+      registerName(originalName, originalAccount);
+
+      const impersonatingName = 'apraṗṛaaìᴜi';
       const impersonatingAccount = autoAddress();
 
       const findings = await handleTransaction(
@@ -282,8 +411,8 @@ describe('ENS Spoofing bot', () => {
 
       expect(findings).toStrictEqual([
         createFinding({
-          legitName,
-          legitAccount,
+          originalName,
+          originalAccount,
           impersonatingName,
           impersonatingAccount,
           developerAbbreviation: mockData.config.developerAbbreviation,
@@ -292,9 +421,6 @@ describe('ENS Spoofing bot', () => {
     });
 
     it('returns a finding if ENS name was spoofed with cyrillic homoglyphs', async () => {
-      // we should detect the use of cyrillic homoglyphs with any number of ASCII characters
-      mockData.config.minASCIICharacters = 1;
-
       const glyphsBySymbol = {
         a: 'а',
         b: 'ь',
@@ -320,10 +446,11 @@ describe('ENS Spoofing bot', () => {
       };
 
       for (const [symbol, glyph] of Object.entries(glyphsBySymbol)) {
-        const legitName = generateName([symbol]);
-        const legitAccount = autoAddress();
+        const originalName = generateName([symbol]);
+        const originalAccount = autoAddress();
 
-        registerName(legitName, legitAccount);
+        clearRegisteredNames();
+        registerName(originalName, originalAccount);
 
         const impersonatingName = generateName([glyph]);
         const impersonatingAccount = autoAddress();
@@ -334,8 +461,8 @@ describe('ENS Spoofing bot', () => {
 
         expect(findings).toStrictEqual([
           createFinding({
-            legitName,
-            legitAccount,
+            originalName,
+            originalAccount,
             impersonatingName,
             impersonatingAccount,
             developerAbbreviation: mockData.config.developerAbbreviation,
@@ -345,10 +472,12 @@ describe('ENS Spoofing bot', () => {
 
       // test multiple symbols simultaneously
 
-      const legitName = generateName(['a', 'c', 'k', 'o'], 1, 10);
-      const legitAccount = autoAddress();
+      const originalName = 'macmkok';
+      const originalAccount = autoAddress();
 
-      const impersonatingName = generateName(['а', 'с', 'к', 'о'], 1, 10);
+      registerName(originalName, originalAccount);
+
+      const impersonatingName = 'mасmкоk';
       const impersonatingAccount = autoAddress();
 
       const findings = await handleTransaction(
@@ -357,8 +486,8 @@ describe('ENS Spoofing bot', () => {
 
       expect(findings).toStrictEqual([
         createFinding({
-          legitName,
-          legitAccount,
+          originalName,
+          originalAccount,
           impersonatingName,
           impersonatingAccount,
           developerAbbreviation: mockData.config.developerAbbreviation,
@@ -367,8 +496,8 @@ describe('ENS Spoofing bot', () => {
     });
 
     it('returns a finding if ENS name was spoofed with uppercase characters', async () => {
-      const legitName = 'bitcoin';
-      const legitAccount = autoAddress();
+      const originalName = 'bitcoin';
+      const originalAccount = autoAddress();
 
       const impersonators = [
         {
@@ -385,15 +514,15 @@ describe('ENS Spoofing bot', () => {
         },
       ];
 
-      registerName(legitName, legitAccount);
+      registerName(originalName, originalAccount);
 
       for (const impersonator of impersonators) {
         const findings = await handleTransaction(getENSRegisterTx([impersonator]));
 
         expect(findings).toStrictEqual([
           createFinding({
-            legitName,
-            legitAccount,
+            originalName,
+            originalAccount,
             impersonatingName: impersonator.name,
             impersonatingAccount: impersonator.account,
             developerAbbreviation: mockData.config.developerAbbreviation,
@@ -403,91 +532,91 @@ describe('ENS Spoofing bot', () => {
     });
 
     it('returns a finding if ENS name was spoofed with non-printable characters', async () => {
-      // we should detect the use of non-printable homoglyphs with any number of ASCII characters
-      mockData.config.minASCIICharacters = 1;
-
       // https://github.com/spencermountain/out-of-character/blob/main/data/characters.json
-      const invisibleSymbols = [
-        '\u000A',
-        '\u000B',
-        '\u000C',
-        '\u000D',
-        '\u00A0',
-        '\u0085',
-        '\u2028',
-        '\u2029',
-        '\u0009',
-        '\u0020',
-        '\u00AD',
-        '\u034F',
-        '\u061C',
-        '\u070F',
-        '\u115F',
-        '\u1160',
-        '\u1680',
-        '\u17B4',
-        '\u17B5',
-        '\u180E',
-        '\u2000',
-        '\u2001',
-        '\u2002',
-        '\u2003',
-        '\u2004',
-        '\u2005',
-        '\u2006',
-        '\u2007',
-        '\u2008',
-        '\u2009',
-        '\u200A',
-        '\u200B',
-        '\u200C',
-        '\u200D',
-        '\u200E',
-        '\u200F',
-        '\u202F',
-        '\u205F',
-        '\u2060',
-        '\u2061',
-        '\u2062',
-        '\u2063',
-        '\u2064',
-        '\u206A',
-        '\u206B',
-        '\u206C',
-        '\u206D',
-        '\u206E',
-        '\u206F',
-        '\u3000',
-        '\u2800',
-        '\u3164',
-        '\uFEFF',
-        '\uFFA0',
-        '\u110B1',
-        '\u1BCA0',
-        '\u1BCA1',
-        '\u1BCA2',
-        '\u1BCA3',
-        '\u1D159',
-        '\u1D173',
-        '\u1D174',
-        '\u1D175',
-        '\u1D176',
-        '\u1D177',
-        '\u1D178',
-        '\u1D179',
-        '\u1D17A',
+      const invisibleChars = [
+        ' ',
+        '\n',
+        '\r',
+        '\u{000A}',
+        '\u{000B}',
+        '\u{000C}',
+        '\u{000D}',
+        '\u{00A0}',
+        '\u{0085}',
+        '\u{2028}',
+        '\u{2029}',
+        '\u{0009}',
+        '\u{0020}',
+        '\u{00AD}',
+        '\u{034F}',
+        '\u{061C}',
+        '\u{070F}',
+        '\u{115F}',
+        '\u{1160}',
+        '\u{1680}',
+        '\u{17B4}',
+        '\u{17B5}',
+        '\u{180E}',
+        '\u{2000}',
+        '\u{2001}',
+        '\u{2002}',
+        '\u{2003}',
+        '\u{2004}',
+        '\u{2005}',
+        '\u{2006}',
+        '\u{2007}',
+        '\u{2008}',
+        '\u{2009}',
+        '\u{200A}',
+        '\u{200B}',
+        '\u{200C}',
+        '\u{200D}',
+        '\u{200E}',
+        '\u{200F}',
+        '\u{202F}',
+        '\u{205F}',
+        '\u{2060}',
+        '\u{2061}',
+        '\u{2062}',
+        '\u{2063}',
+        '\u{2064}',
+        '\u{206A}',
+        '\u{206B}',
+        '\u{206C}',
+        '\u{206D}',
+        '\u{206E}',
+        '\u{206F}',
+        '\u{3000}',
+        '\u{2800}',
+        '\u{3164}',
+        '\u{FEFF}',
+        '\u{FFA0}',
+        '\u{110B1}',
+        '\u{1BCA0}',
+        '\u{1BCA1}',
+        '\u{1BCA2}',
+        '\u{1BCA3}',
+        '\u{1D159}',
+        '\u{1D173}',
+        '\u{1D174}',
+        '\u{1D175}',
+        '\u{1D176}',
+        '\u{1D177}',
+        '\u{1D178}',
+        '\u{1D179}',
+        '\u{1D17A}',
       ];
 
-      const legitName = generateName([], 1);
-      const legitAccount = autoAddress();
+      const originalName = generateName([]);
+      const originalAccount = autoAddress();
 
-      registerName(legitName, legitAccount);
+      registerName(originalName, originalAccount);
 
-      for (const symbol of invisibleSymbols) {
+      for (const char of invisibleChars) {
         // insert invisible characters into specific positions
-        const nameChars = Array.from(legitName);
-        for (const position of [0, 2, legitName.length + 2, legitName.length + 3]) {
-          nameChars.splice(position, 0, symbol);
+        const nameChars = Array.from(originalName);
+        for (const position of [0, 2, originalName.length + 2, originalName.length + 3]) {
+          nameChars.splice(position, 0, char);
         }
 
         const impersonatingName = nameChars.join('');
@@ -504,8 +633,8 @@ describe('ENS Spoofing bot', () => {
 
         expect(findings).toStrictEqual([
           createFinding({
-            legitName,
-            legitAccount,
+            originalName,
+            originalAccount,
             impersonatingName,
             impersonatingAccount,
             developerAbbreviation: mockData.config.developerAbbreviation,
@@ -516,7 +645,12 @@ describe('ENS Spoofing bot', () => {
       // test multiple symbols simultaneously
 
       const impersonatingName =
-        '\u0020' + legitName.slice(0, 3) + '\u000A' + legitName.slice(3) + '\u2800' + '\u200C';
+        '\u0020' +
+        originalName.slice(0, 3) +
+        '\u000A' +
+        originalName.slice(3) +
+        '\u2800' +
+        '\u200C';
       const impersonatingAccount = autoAddress();
 
       const findings = await handleTransaction(
@@ -525,8 +659,8 @@ describe('ENS Spoofing bot', () => {
 
       expect(findings).toStrictEqual([
         createFinding({
-          legitName,
-          legitAccount,
+          originalName,
+          originalAccount,
           impersonatingName,
           impersonatingAccount,
           developerAbbreviation: mockData.config.developerAbbreviation,
@@ -535,8 +669,8 @@ describe('ENS Spoofing bot', () => {
     });
 
     it('returns a finding if ENS name was spoofed with multiple homoglyph techniques', async () => {
-      const legitName = 'wildcat';
-      const legitAccount = autoAddress();
+      const originalName = 'wildcat';
+      const originalAccount = autoAddress();
 
       const impersonatingName =
         'W' /* capitalized */ +
@@ -548,14 +682,16 @@ describe('ENS Spoofing bot', () => {
         '\u00A0'; /* invisible symbol */
       const impersonatingAccount = autoAddress();
 
+      registerName(originalName, originalAccount);
+
       const findings = await handleTransaction(
         getENSRegisterTx([{ name: impersonatingName, account: impersonatingAccount }]),
       );
 
       expect(findings).toStrictEqual([
         createFinding({
-          legitName,
-          legitAccount,
+          originalName,
+          originalAccount,
           impersonatingName,
           impersonatingAccount,
           developerAbbreviation: mockData.config.developerAbbreviation,
@@ -564,10 +700,10 @@ describe('ENS Spoofing bot', () => {
     });
 
     it('returns multiple findings', async () => {
-      const legitName1 = 'wildcat';
-      const legitAccount1 = autoAddress();
-      const legitName2 = 'legit';
-      const legitAccount2 = autoAddress();
+      const originalName1 = 'wildcat';
+      const originalAccount1 = autoAddress();
+      const originalName2 = 'legit';
+      const originalAccount2 = autoAddress();
 
       const impersonatingName1 = 'Wildcat';
       const impersonatingAccount1 = autoAddress();
@@ -576,8 +712,8 @@ describe('ENS Spoofing bot', () => {
       const impersonatingName3 = 'legit' + '\u000A';
       const impersonatingAccount3 = autoAddress();
 
-      registerName(legitName1, legitAccount1);
-      registerName(legitName2, legitAccount2);
+      registerName(originalName1, originalAccount1);
+      registerName(originalName2, originalAccount2);
 
       const findings = await handleTransaction(
         getENSRegisterTx([
@@ -589,22 +725,22 @@ describe('ENS Spoofing bot', () => {
 
       expect(findings).toStrictEqual([
         createFinding({
-          legitName: legitName1,
-          legitAccount: legitAccount1,
+          originalName: originalName1,
+          originalAccount: originalAccount1,
           impersonatingName: impersonatingName1,
           impersonatingAccount: impersonatingAccount1,
           developerAbbreviation: mockData.config.developerAbbreviation,
         }),
         createFinding({
-          legitName: legitName1,
-          legitAccount: legitAccount1,
+          originalName: originalName1,
+          originalAccount: originalAccount1,
           impersonatingName: impersonatingName2,
           impersonatingAccount: impersonatingAccount2,
           developerAbbreviation: mockData.config.developerAbbreviation,
         }),
         createFinding({
-          legitName: legitName2,
-          legitAccount: legitAccount2,
+          originalName: originalName2,
+          originalAccount: originalAccount2,
           impersonatingName: impersonatingName3,
           impersonatingAccount: impersonatingAccount3,
           developerAbbreviation: mockData.config.developerAbbreviation,

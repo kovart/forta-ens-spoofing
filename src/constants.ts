@@ -7,31 +7,32 @@ export const NAME_REGISTERED_EVENT =
 
 export const ASCII_HOMOGLYPHS_BY_ASCII_CHARACTER: KeyValue<string[]> = {
   '0': ['o'],
-  '1': ['l', 'i'],
+  '1': ['l', 'i', '|'],
   b: ['d', 'lb'],
   c: ['e'],
   d: ['b'],
   e: ['c'],
   g: ['q'],
   h: ['lh'],
-  i: ['1', 'l'],
+  i: ['1', 'l', '|'],
   k: ['lk', 'ik', 'lc'],
-  l: ['1', 'i'],
+  l: ['1', 'i', '|'],
   m: ['n', 'nn', 'rn', 'rr'],
   n: ['m', 'r'],
   o: ['0'],
   q: ['g'],
   w: ['vv'],
+  '|': ['1', 'l', 'i'],
 };
 
-export const ASCII_CHARACTER_BY_ASCII_HOMOGLYPH: KeyValue<string[]> = Object.assign(
-  {},
-  ...Object.entries(ASCII_HOMOGLYPHS_BY_ASCII_CHARACTER).map(([char, glyphs]) =>
-    glyphs.map((glyph) => ({
-      [glyph]: char,
-    })),
-  ),
-);
+export const ASCII_CHARACTERS_BY_ASCII_HOMOGLYPH: KeyValue<string[]> = {};
+for (const [char, glyphs] of Object.entries(ASCII_HOMOGLYPHS_BY_ASCII_CHARACTER)) {
+  for (const glyph of glyphs) {
+    ASCII_CHARACTERS_BY_ASCII_HOMOGLYPH[glyph] = [
+      ...new Set<string>([...(ASCII_CHARACTERS_BY_ASCII_HOMOGLYPH[glyph] || []), char]),
+    ];
+  }
+}
 
 export const UNICODE_HOMOGLYPHS_BY_ASCII_CHARACTER: KeyValue<string[]> = {
   '2': ['ƻ'],
@@ -105,3 +106,75 @@ export const ASCII_CHARACTER_BY_CYRILLIC_HOMOGLYPH: KeyValue<string> = Object.as
     [glyph]: symbol,
   })),
 );
+
+// https://github.com/spencermountain/out-of-character/blob/main/data/characters.json
+export const INVISIBLE_UNICODE_CHARACTERS = new Set([
+  '\u{000A}',
+  '\u{000B}',
+  '\u{000C}',
+  '\u{000D}',
+  '\u{00A0}',
+  '\u{0085}',
+  '\u{2028}',
+  '\u{2029}',
+  '\u{0009}',
+  '\u{0020}',
+  '\u{00AD}',
+  '\u{034F}',
+  '\u{061C}',
+  '\u{070F}',
+  '\u{115F}',
+  '\u{1160}',
+  '\u{1680}',
+  '\u{17B4}',
+  '\u{17B5}',
+  '\u{180E}',
+  '\u{2000}',
+  '\u{2001}',
+  '\u{2002}',
+  '\u{2003}',
+  '\u{2004}',
+  '\u{2005}',
+  '\u{2006}',
+  '\u{2007}',
+  '\u{2008}',
+  '\u{2009}',
+  '\u{200A}',
+  '\u{200B}',
+  '\u{200C}',
+  '\u{200D}',
+  '\u{200E}',
+  '\u{200F}',
+  '\u{202F}',
+  '\u{205F}',
+  '\u{2060}',
+  '\u{2061}',
+  '\u{2062}',
+  '\u{2063}',
+  '\u{2064}',
+  '\u{206A}',
+  '\u{206B}',
+  '\u{206C}',
+  '\u{206D}',
+  '\u{206E}',
+  '\u{206F}',
+  '\u{3000}',
+  '\u{2800}',
+  '\u{3164}',
+  '\u{FEFF}',
+  '\u{FFA0}',
+  '\u{110B1}',
+  '\u{1BCA0}',
+  '\u{1BCA1}',
+  '\u{1BCA2}',
+  '\u{1BCA3}',
+  '\u{1D159}',
+  '\u{1D173}',
+  '\u{1D174}',
+  '\u{1D175}',
+  '\u{1D176}',
+  '\u{1D177}',
+  '\u{1D178}',
+  '\u{1D179}',
+  '\u{1D17A}',
+]);

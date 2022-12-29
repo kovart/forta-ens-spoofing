@@ -8,10 +8,6 @@ to receive an alert if it happened to their name.
 
 ![ENS Spoofing Bot](/blob/preview.png)
 
-## Status
-
-> Work In Progress
-
 ## The problem
 
 Names in the Ethereum Name Service are unique, but there are no restrictions on registering look-alike names that are
@@ -38,37 +34,31 @@ Any user can register a name bypassing the official site by calling the protocol
 
 ### Examples
 
-| Legit name                      | Spoofing name                                              | Technique          |
-| ------------------------------- | ---------------------------------------------------------- | ------------------ |
-| wildcat.eth                     | w1ldcat.eth                                                | ASCII Homoglyph    |
-| bitcoin.eth                     | Bitcoin.eth                                                | Uppercase          |
-| danger.eth                      | dаnger.eth                                                 | Cyrillic Homoglyph |
-| web3user.eth                    | web3uṡer.eth                                               | Unicode Homoglyph  |
-| vitalik.eth                     | vitalik&#8203;.eth                                         | Zero Width Space   |
-| of etheen / wizardsofetheen.eth | of&nbsp;&nbsp;etheen&nbsp;/&nbsp;&nbsp;wizardsofetheen.eth | Whitespace         |
-
-## The Solution
-
-ENS Spoofing Bot monitors on-chain contract events responsible for registering ".eth" names.
-As soon as the bot detects a new registered name, it tries to normalize it and checks if a similar name has already been
-registered.
-If so, the bot fires an alert specifying the registered name, the existing normalized name, and the addresses of the
-accounts to which these names are bound.
-
-Forta Protocol allows each user to subscribe to alerts involving their addresses,
-so if their name is spoofed, they will immediately receive a notification in one of the convenient ways: Email,
-Telegram, Discord, Slack or Webhook.
+| Original name                   | Spoofing name                                              | Technique           |
+|---------------------------------| ---------------------------------------------------------- |---------------------|
+| bitcoin.eth                     | Bitcoin.eth                                                | Uppercase           |
+| danger.eth                      | dаnger.eth                                                 | Cyrillic Homoglyph  |
+| web3user.eth                    | web3uṡer.eth                                               | Unicode Homoglyph   |
+| wildcat.eth                     | w1ldcat.eth                                                | ASCII Homoglyph     |
+| wildcat100                      | vv1lḍCatl00                                                | Multiple Techniques |
+| vitalik.eth                     | vitalik&#8203;.eth                                         | Zero Width Space    |
+| of etheen / wizardsofetheen.eth | of&nbsp;&nbsp;etheen&nbsp;/&nbsp;&nbsp;wizardsofetheen.eth | Whitespace          |
 
 ## Supported Chains
 
-- Ethereum
+- Ethereum (1)
 
 ## Alerts
 
-- AK-ENS-SPOOFING
-  - Fired when a transaction contains a registration event for a .ETH name that visually similar to an existing one
+- AK-ENS-SPOOFING-ETH
+  - Fired when a transaction contains registration of a name that visually similar to an existing one
   - Severity is always set to "low"
   - Type is always set to "suspicious"
+  - Metadata:
+    - `originalName` - the name of the account that was potentially spoofed
+    - `originalAccount` - the address of the account that was potentially spoofed
+    - `impersonatingName` - the name of the account that registered a name similar to the one that already exists
+    - `impersonatingAccount` - the address of the account that registered a name similar to the one that already exists
 
 ## Test Data
 

@@ -36,10 +36,14 @@
   "dependencies": {
     "ethers": "^5.7.2",
     "forta-agent": "^0.1.15",
-    "forta-agent-tools": "^3.1.2"
+    "forta-agent-tools": "^3.1.2",
+    "js-combinatorics": "^2.1.1",
+    "js-sha3": "^0.8.0",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@types/jest": "^29.2.4",
+    "@types/lodash": "^4.14.191",
     "@types/nodemon": "^1.19.2",
     "@typescript-eslint/eslint-plugin": "^5.46.0",
     "eslint": "^8.29.0",

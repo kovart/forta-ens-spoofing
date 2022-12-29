@@ -1,32 +1,32 @@
 import { Finding, FindingSeverity, FindingType } from 'forta-agent';
 
 export const createFinding = (params: {
-  legitName: string;
-  legitAccount: string;
+  originalName: string;
+  originalAccount: string;
   impersonatingName: string;
   impersonatingAccount: string;
   developerAbbreviation: string;
 }) => {
   const {
-    legitName,
-    legitAccount,
+    originalName,
+    originalAccount,
     impersonatingName,
     impersonatingAccount,
     developerAbbreviation,
   } = params;
 
   return Finding.from({
-    alertId: `${developerAbbreviation}-ENS-SPOOFING`,
+    alertId: `${developerAbbreviation}-ENS-SPOOFING-ETH`,
     name: 'Potential ENS Spoofing',
     description:
       `Account ${impersonatingAccount} registered "${impersonatingName}.eth" ENS name` +
-      ` that is visually similar to "${legitName}.eth" of account ${legitAccount}`,
+      ` that is visually similar to "${originalName}.eth" of account ${originalAccount}`,
     type: FindingType.Suspicious,
     severity: FindingSeverity.Low,
-    addresses: [legitAccount, impersonatingAccount],
+    addresses: [originalAccount, impersonatingAccount],
     metadata: {
-      legitName,
-      legitAccount: legitAccount.toLowerCase(),
+      originalName,
+      originalAccount: originalAccount.toLowerCase(),
       impersonatingName,
       impersonatingAccount: impersonatingAccount.toLowerCase(),
     },
