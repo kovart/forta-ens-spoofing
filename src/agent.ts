@@ -4,8 +4,9 @@ import {
   Initialize,
   HandleTransaction,
   TransactionEvent,
-  getEthersProvider,
+  getEthersBatchProvider,
 } from 'forta-agent';
+import { queue } from 'async';
 import { Logger, LoggerLevel } from './logger';
 import { EnsResolver } from './resolver';
 import { createFinding } from './findings';
@@ -14,7 +15,7 @@ import { NAME_REGISTERED_EVENT } from './constants';
 import { BotConfig, DataContainer } from './types';
 
 const data: DataContainer = {} as any;
-const provider = getEthersProvider();
+const provider = getEthersBatchProvider();
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const logger = new Logger(isDevelopment ? LoggerLevel.DEBUG : LoggerLevel.INFO);
 const botConfig: BotConfig = require('../bot-config.json');
@@ -60,13 +61,24 @@ const provideHandleTransaction = (data: DataContainer): HandleTransaction => {
 
       data.logger.debug(`Name variants for ${name}: `, normalizedNames.length);
 
+      let counter = 0;
       const similarLookingRecords: { name: string; account: string }[] = [];
-      for (const name of normalizedNames) {
+      const nameQueue = queue<string>(async (name, callback) => {
         const account = await data.ensResolver.resolveName(name + '.eth', txEvent.blockNumber);
-        data.logger.debug('Checked name variant:', name);
+        data.logger.debug(
+          `Checked name variant ${++counter}/${normalizedNames.length}:`,
+          name,
+          account,
+        );
         if (account) {
           similarLookingRecords.push({ name, account });
         }
+        callback();
+      }, 4);
+
+      if (normalizedNames.length > 0) {
+        nameQueue.push(normalizedNames);
+        await nameQueue.drain();
       }
 
       if (similarLookingRecords.length > 0) {

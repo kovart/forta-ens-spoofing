@@ -6,6 +6,8 @@ ENS Spoofing Bot detects attacks in which someone registers a name visually simi
 attacks to be detected before they happen or to minimize the damage from them. What's more, every ENS user will be able
 to receive an alert if it happened to their name.
 
+[Table of spoofing techniques supported by the bot.](#spoofing-techniques)
+
 ![ENS Spoofing Bot](/blob/preview.png)
 
 ## The problem
@@ -32,13 +34,15 @@ as well as warning against using non-ascii characters on its site.
 However, to save gas, such checks have been implemented off-chain, on the frontend side.
 Any user can register a name bypassing the official site by calling the protocol contract directly.
 
-### Examples
+## Spoofing Techniques
+
+Below you will find examples of spoofing techniques that can be detected by this bot.
 
 | Original name | Spoofing name      | Technique           |
 | ------------- | ------------------ | ------------------- |
 | bitcoin.eth   | Bitcoin.eth        | Uppercase           |
 | danger.eth    | dаnger.eth         | Cyrillic Homoglyph  |
-| glükk.eth     | glukk.eth          | Unicode Homoglyph   |
+| glukk.eth     | glükk.eth          | Unicode Homoglyph   |
 | wildcat.eth   | w1ldcat.eth        | ASCII Homoglyph     |
 | vitalik.eth   | vitalik&#8203;.eth | Zero Width Space    |
 | wildcat100    | vv1lḍCatl00        | Multiple Techniques |

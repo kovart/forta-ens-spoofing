@@ -1,8 +1,7 @@
-
+import { ethers } from 'ethers';
 import { createAddress } from 'forta-agent-tools';
 import { MockEthersProvider } from 'forta-agent-tools/lib/test';
-import {EnsRegistryAbi, EnsResolver, EnsResolverAbi} from './resolver';
-import { ethers } from 'ethers';
+import { EnsRegistryAbi, EnsResolver, EnsResolverAbi } from './resolver';
 
 describe('EnsResolver', () => {
   const mockProvider = new MockEthersProvider();
@@ -14,7 +13,28 @@ describe('EnsResolver', () => {
     expect(instance).toBeInstanceOf(EnsResolver);
   });
 
-  // it("returns null if name doesn't exist", async () => {});
+  it("returns null if name doesn't exist", async () => {
+    const registryAddress = createAddress('0x101');
+    const accountName = 'foo.eth';
+    const blockNumber = 12345;
+
+    mockProvider.addCallTo(
+      registryAddress,
+      blockNumber,
+      new ethers.utils.Interface(EnsRegistryAbi),
+      'resolver',
+      {
+        inputs: ['0xde9b09fd7c5f901e23a3f19fecc54828e9c848539801e86591bd9801b019f84f'],
+        outputs: [ethers.constants.AddressZero],
+      },
+    );
+
+    const instance = new EnsResolver(registryAddress, mockProvider as any);
+
+    const address = await instance.resolveName(accountName, blockNumber);
+
+    expect(address).toStrictEqual(null);
+  });
 
   it('generates namehash properly', async () => {
     const registryAddress = createAddress('0x1');
