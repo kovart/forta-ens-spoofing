@@ -34,15 +34,14 @@ Any user can register a name bypassing the official site by calling the protocol
 
 ### Examples
 
-| Original name                   | Spoofing name                                              | Technique           |
-|---------------------------------| ---------------------------------------------------------- |---------------------|
-| bitcoin.eth                     | Bitcoin.eth                                                | Uppercase           |
-| danger.eth                      | dаnger.eth                                                 | Cyrillic Homoglyph  |
-| web3user.eth                    | web3uṡer.eth                                               | Unicode Homoglyph   |
-| wildcat.eth                     | w1ldcat.eth                                                | ASCII Homoglyph     |
-| wildcat100                      | vv1lḍCatl00                                                | Multiple Techniques |
-| vitalik.eth                     | vitalik&#8203;.eth                                         | Zero Width Space    |
-| of etheen / wizardsofetheen.eth | of&nbsp;&nbsp;etheen&nbsp;/&nbsp;&nbsp;wizardsofetheen.eth | Whitespace          |
+| Original name | Spoofing name      | Technique           |
+| ------------- | ------------------ | ------------------- |
+| bitcoin.eth   | Bitcoin.eth        | Uppercase           |
+| danger.eth    | dаnger.eth         | Cyrillic Homoglyph  |
+| glükk.eth     | glukk.eth          | Unicode Homoglyph   |
+| wildcat.eth   | w1ldcat.eth        | ASCII Homoglyph     |
+| vitalik.eth   | vitalik&#8203;.eth | Zero Width Space    |
+| wildcat100    | vv1lḍCatl00        | Multiple Techniques |
 
 ## Supported Chains
 

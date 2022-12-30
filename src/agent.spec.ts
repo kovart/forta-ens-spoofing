@@ -22,6 +22,7 @@ describe('ENS Spoofing bot', () => {
         minASCIICharactersNumber: 5,
         maxASCIIHomoglyphsNumber: 4,
         maxASCIIHomoglyphsPercent: 30,
+        maxASCIICharactersNumber: 20,
         ensRegistryAddress: createAddress('0x2'),
         ensEthRegistrarControllerAddress: createAddress('0x'),
       };
@@ -111,12 +112,13 @@ describe('ENS Spoofing bot', () => {
           minASCIICharactersNumber: 1, // test purpose
           maxASCIIHomoglyphsNumber: 99, // test purpose
           maxASCIIHomoglyphsPercent: 99, // test purpose
+          maxASCIICharactersNumber: 99, // test purpose
           ensRegistryAddress: createAddress('0xFFEEDDCCBBAA'),
           ensEthRegistrarControllerAddress: createAddress('0xAABBCCDDEEFF'),
         },
         provider: mockProvider,
         ensResolver: mockEnsResolver,
-        logger: new Logger(LoggerLevel.INFO),
+        logger: new Logger(LoggerLevel.WARN),
         isDevelopment: false,
         isInitialized: true,
       } as DataContainer;
@@ -130,6 +132,7 @@ describe('ENS Spoofing bot', () => {
         minASCIICharactersNumber: 1,
         maxASCIIHomoglyphsNumber: 99,
         maxASCIIHomoglyphsPercent: 99,
+        maxASCIICharactersNumber: 99,
       };
     });
 
@@ -158,6 +161,28 @@ describe('ENS Spoofing bot', () => {
         );
         expect(findings).toStrictEqual([]);
       }
+    });
+
+    it('returns empty findings if ENS name has a large enough number of ASCII characters', async () => {
+      mockData.config.maxASCIICharactersNumber = 6;
+
+      const originalName = 'wildcat';
+      const originalAccount = autoAddress();
+      const impersonatingName = 'w1ldcat';
+      const impersonatingAccount = autoAddress();
+
+      registerName(originalName, originalAccount);
+
+      const findings = await handleTransaction(
+        getENSRegisterTx([
+          {
+            name: impersonatingName,
+            account: impersonatingAccount,
+          },
+        ]),
+      );
+
+      expect(findings).toStrictEqual([]);
     });
 
     it('returns empty findings if ENS name is short enough to be spoofed with ASCII homohlyphs', async () => {

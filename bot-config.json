@@ -1,6 +1,7 @@
 {
   "developerAbbreviation": "AK",
   "minASCIICharactersNumber": 5,
+  "maxASCIICharactersNumber": "22",
   "maxASCIIHomoglyphsNumber": 3,
   "maxASCIIHomoglyphsPercent": "30",
   "ensRegistryAddress": "0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e",

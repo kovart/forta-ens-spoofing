@@ -4,6 +4,7 @@ import { EnsResolver } from './resolver';
 
 export type NormalizationConfig = {
   minASCIICharactersNumber: number;
+  maxASCIICharactersNumber: number;
   maxASCIIHomoglyphsNumber: number;
   maxASCIIHomoglyphsPercent: number;
 };

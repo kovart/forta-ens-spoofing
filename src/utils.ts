@@ -44,8 +44,12 @@ export function getNormalizedNameVariants(name: string, config: NormalizationCon
   // add normalized name to collection
   nameVariants.add(normalizedName);
 
+  const asciiLength = normalizedName.match(/([ -~]+)/g)?.[0].length || 0;
   // return if name length is short enough for remapping of ASCII homoglyphs (high risk of False Positive)
-  if ((normalizedName.match(/([ -~]+)/g)?.[0].length || 0) < config.minASCIICharactersNumber) {
+  if (
+    asciiLength < config.minASCIICharactersNumber ||
+    asciiLength > config.maxASCIICharactersNumber
+  ) {
     return [...nameVariants].filter((n) => n.length > 0 && n !== name);
   }
 
