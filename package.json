@@ -1,6 +1,6 @@
 {
   "name": "ak-forta-ens-spoofing",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "The bot detects when someone registers an ENS name visually similar to an existing one",
   "repository": {
     "type": "git",
