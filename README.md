@@ -6,6 +6,8 @@ ENS Spoofing Bot detects attacks in which someone registers a name visually simi
 attacks to be detected before they happen or to minimize the damage from them. What's more, every ENS user will be able
 to receive an alert if it happened to their name.
 
+https://explorer.forta.network/bot/0x907254168eec2d601d2dc097e1dda89c80bbabb9d961c30bdf1eeeaa556dd99e
+
 [Table of spoofing techniques supported by the bot.](#spoofing-techniques)
 
 ![ENS Spoofing Bot](/blob/preview.png)
